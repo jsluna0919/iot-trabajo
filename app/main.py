@@ -1,9 +1,9 @@
 from fastapi import FastAPI
 from sqlalchemy.orm import Session
 
-from database import SessionLocal
-from models import Medicion
-from schemas import MedicionCreate
+from app.database import SessionLocal
+from app.models import Medicion
+from app.schemas import MedicionCreate
 
 app = FastAPI()
 
