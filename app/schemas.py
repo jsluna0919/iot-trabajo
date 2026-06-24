@@ -5,13 +5,10 @@ class MedicionCreate(BaseModel):
 
     nivel_agua: float
     nivel_fluvial: float
-
     temperatura: float
     humedad: float
-
     esta_lloviendo: bool
 
-    estado_alerta: str
 
 class ConfiguracionUpdate(BaseModel):
     nivel_preventivo: float

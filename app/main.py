@@ -21,8 +21,6 @@ def inicio():
 @app.post("/mediciones")
 def crear_medicion(datos: MedicionCreate):
 
-    print("ENTRO AL POST DE MEDICIONES")
-
     db: Session = SessionLocal()
 
     nueva_medicion = Medicion(
@@ -31,52 +29,81 @@ def crear_medicion(datos: MedicionCreate):
         temperatura=datos.temperatura,
         humedad=datos.humedad,
         esta_lloviendo=datos.esta_lloviendo,
-        estado_alerta=datos.estado_alerta,
+        estado_alerta="SIN RIESGO",
         fecha_hora=datetime.now()
     )
 
-    # Guardar la medición
-    db.add(nueva_medicion)
-    db.commit()
-
-    # Obtener configuración
     config = (
         db.query(ConfiguracionAlerta)
         .filter(ConfiguracionAlerta.activo == True)
         .first()
     )
 
-    # Crear alerta si corresponde
     if config:
 
-        if datos.nivel_agua >= config.nivel_critico:
+        # Nivel verde
+        if 5 <= datos.nivel_agua < 10:
+
+            nueva_medicion.estado_alerta = "NORMAL"
+
+        # Alerta amarilla
+        elif 10 <= datos.nivel_agua < 15:
+
+            nueva_medicion.estado_alerta = "PRECAUCION"
 
             alerta = Alerta(
-                nivel_alerta="CRITICA",
-                descripcion=f"Nivel crítico detectado: {datos.nivel_agua}",
+                nivel_alerta="AMARILLA",
+                descripcion=f"Nivel de agua en precaución: {datos.nivel_agua} cm",
                 fecha_hora=datetime.now(),
                 atendida=False
             )
 
             db.add(alerta)
-            db.commit()
 
-        elif datos.nivel_agua >= config.nivel_preventivo:
+        # Alerta naranja
+        elif 15 <= datos.nivel_agua <= 20:
+
+            nueva_medicion.estado_alerta = "PREVENCION"
 
             alerta = Alerta(
-                nivel_alerta="PREVENTIVA",
-                descripcion=f"Nivel preventivo detectado: {datos.nivel_agua}",
+                nivel_alerta="NARANJA",
+                descripcion=f"Nivel de agua en prevención: {datos.nivel_agua} cm",
                 fecha_hora=datetime.now(),
                 atendida=False
             )
 
             db.add(alerta)
-            db.commit()
+
+        # Alerta roja
+        elif datos.nivel_agua > 20:
+
+            nueva_medicion.estado_alerta = "CRITICA"
+
+            alerta = Alerta(
+                nivel_alerta="ROJA",
+                descripcion=f"Nivel crítico detectado: {datos.nivel_agua} cm",
+                fecha_hora=datetime.now(),
+                atendida=False
+            )
+
+            db.add(alerta)
+
+        else:
+
+            nueva_medicion.estado_alerta = "SIN RIESGO"
+
+    db.add(nueva_medicion)
+
+    db.commit()
+
+    db.refresh(nueva_medicion)
 
     db.close()
 
     return {
-        "mensaje": "medicion guardada"
+        "mensaje": "Medición guardada correctamente",
+        "id_medicion": nueva_medicion.id_medicion,
+        "estado_alerta": nueva_medicion.estado_alerta
     }
 
 @app.get("/mediciones")
