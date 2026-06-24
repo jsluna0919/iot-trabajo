@@ -12,3 +12,8 @@ class MedicionCreate(BaseModel):
     esta_lloviendo: bool
 
     estado_alerta: str
+
+class ConfiguracionUpdate(BaseModel):
+    nivel_preventivo: float
+    nivel_critico: float
+    activo: bool

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Numeric, Boolean, String, DateTime
+from sqlalchemy import Column, Integer, Float, Boolean, String, DateTime,Numeric
 from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
@@ -20,3 +20,23 @@ class Medicion(Base):
     estado_alerta = Column(String)
 
     fecha_hora = Column(DateTime)
+
+class Alerta(Base):
+    __tablename__ = "tbl_alertas"
+
+    id_alerta = Column(Integer, primary_key=True, index=True)
+    nivel_alerta = Column(String)
+
+    descripcion = Column(String)
+    fecha_hora = Column(DateTime)
+    atendida = Column(Boolean)
+
+
+class ConfiguracionAlerta(Base):
+    __tablename__ = "tbl_configuracion_alertas"
+
+    id_configuracion = Column(Integer, primary_key=True, index=True)
+    nivel_preventivo = Column(Float)
+    nivel_critico = Column(Float)
+    activo = Column(Boolean)
+    fecha_actualizacion = Column(DateTime)

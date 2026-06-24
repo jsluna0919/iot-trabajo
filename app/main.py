@@ -2,9 +2,11 @@ from fastapi import FastAPI
 from sqlalchemy.orm import Session
 from datetime import datetime
 
+
 from app.database import SessionLocal
-from app.models import Medicion
-from app.schemas import MedicionCreate
+from app.models import Medicion,Alerta,ConfiguracionAlerta
+from app.schemas import MedicionCreate,ConfiguracionUpdate
+
 
 app = FastAPI()
 
@@ -19,27 +21,64 @@ def inicio():
 @app.post("/mediciones")
 def crear_medicion(datos: MedicionCreate):
 
+    print("ENTRO AL POST DE MEDICIONES")
+
     db: Session = SessionLocal()
 
     nueva_medicion = Medicion(
-    nivel_agua=datos.nivel_agua,
-    nivel_fluvial=datos.nivel_fluvial,
-    temperatura=datos.temperatura,
-    humedad=datos.humedad,
-    esta_lloviendo=datos.esta_lloviendo,
-    estado_alerta=datos.estado_alerta,
-    fecha_hora=datetime.now()
-)
+        nivel_agua=datos.nivel_agua,
+        nivel_fluvial=datos.nivel_fluvial,
+        temperatura=datos.temperatura,
+        humedad=datos.humedad,
+        esta_lloviendo=datos.esta_lloviendo,
+        estado_alerta=datos.estado_alerta,
+        fecha_hora=datetime.now()
+    )
 
+    # Guardar la medición
     db.add(nueva_medicion)
-
     db.commit()
+
+    # Obtener configuración
+    config = (
+        db.query(ConfiguracionAlerta)
+        .filter(ConfiguracionAlerta.activo == True)
+        .first()
+    )
+
+    # Crear alerta si corresponde
+    if config:
+
+        if datos.nivel_agua >= config.nivel_critico:
+
+            alerta = Alerta(
+                nivel_alerta="CRITICA",
+                descripcion=f"Nivel crítico detectado: {datos.nivel_agua}",
+                fecha_hora=datetime.now(),
+                atendida=False
+            )
+
+            db.add(alerta)
+            db.commit()
+
+        elif datos.nivel_agua >= config.nivel_preventivo:
+
+            alerta = Alerta(
+                nivel_alerta="PREVENTIVA",
+                descripcion=f"Nivel preventivo detectado: {datos.nivel_agua}",
+                fecha_hora=datetime.now(),
+                atendida=False
+            )
+
+            db.add(alerta)
+            db.commit()
 
     db.close()
 
     return {
         "mensaje": "medicion guardada"
     }
+
 @app.get("/mediciones")
 def obtener_mediciones():
 
@@ -90,4 +129,112 @@ def obtener_ultima_medicion():
         "esta_lloviendo": medicion.esta_lloviendo,
         "estado_alerta": medicion.estado_alerta,
         "fecha_hora": str(medicion.fecha_hora)
+    }
+
+@app.get("/alertas")
+def obtener_alertas():
+
+    db: Session = SessionLocal()
+
+    alertas = (
+        db.query(Alerta)
+        .order_by(Alerta.id_alerta.desc())
+        .all()
+    )
+
+    resultado = []
+
+    for a in alertas:
+        resultado.append({
+            "id_alerta": a.id_alerta,
+            "nivel_alerta": a.nivel_alerta,
+            "descripcion": a.descripcion,
+            "fecha_hora": str(a.fecha_hora),
+            "atendida": a.atendida
+        })
+
+    db.close()
+
+    return resultado
+
+@app.get("/alertas/{id_alerta}")
+def obtener_alerta(id_alerta: int):
+
+    db: Session = SessionLocal()
+
+    alerta = (
+        db.query(Alerta)
+        .filter(Alerta.id_alerta == id_alerta)
+        .first()
+    )
+
+    db.close()
+
+    if not alerta:
+        return {"mensaje": "Alerta no encontrada"}
+
+    return {
+        "id_alerta": alerta.id_alerta,
+        "nivel_alerta": alerta.nivel_alerta,
+        "descripcion": alerta.descripcion,
+        "fecha_hora": str(alerta.fecha_hora),
+        "atendida": alerta.atendida
+    }
+
+@app.get("/configuracion-alertas")
+def obtener_configuracion():
+
+    db: Session = SessionLocal()
+
+    config = (
+        db.query(ConfiguracionAlerta)
+        .filter(ConfiguracionAlerta.activo == True)
+        .first()
+    )
+
+    db.close()
+
+    if not config:
+        return {"mensaje": "No existe configuración"}
+
+    return {
+        "id_configuracion": config.id_configuracion,
+        "nivel_preventivo": float(config.nivel_preventivo),
+        "nivel_critico": float(config.nivel_critico),
+        "activo": config.activo,
+        "fecha_actualizacion": str(config.fecha_actualizacion)
+    }
+@app.put("/configuracion-alertas")
+def actualizar_configuracion(datos: ConfiguracionUpdate):
+
+    db: Session = SessionLocal()
+
+    config = (
+        db.query(ConfiguracionAlerta)
+        .first()
+    )
+
+    if not config:
+
+        config = ConfiguracionAlerta(
+            nivel_preventivo=datos.nivel_preventivo,
+            nivel_critico=datos.nivel_critico,
+            activo=datos.activo,
+            fecha_actualizacion=datetime.now()
+        )
+
+        db.add(config)
+
+    else:
+
+        config.nivel_preventivo = datos.nivel_preventivo
+        config.nivel_critico = datos.nivel_critico
+        config.activo = datos.activo
+        config.fecha_actualizacion = datetime.now()
+
+    db.commit()
+    db.close()
+
+    return {
+        "mensaje": "Configuración actualizada"
     }
