@@ -11,7 +11,7 @@ from app.schemas import MedicionCreate,ConfiguracionUpdate
 app = FastAPI()
 
 
-@app.get("/")
+@app.get("/prueba")
 def inicio():
     return {
         "mensaje": "API funcionando"
