@@ -11,92 +11,50 @@ from app.schemas import MedicionCreate,ConfiguracionUpdate
 app = FastAPI()
 
 
-@app.get("/prueba")
-def inicio():
-    return {
-        "mensaje": "API funcionando"
-    }
-
-
 @app.post("/mediciones")
 def crear_medicion(datos: MedicionCreate):
 
     db: Session = SessionLocal()
 
     nueva_medicion = Medicion(
+        id_dispositivo=datos.id_dispositivo,
         nivel_agua=datos.nivel_agua,
         nivel_fluvial=datos.nivel_fluvial,
         temperatura=datos.temperatura,
         humedad=datos.humedad,
         esta_lloviendo=datos.esta_lloviendo,
-        estado_alerta="SIN RIESGO",
+        estado_alerta=datos.estado_alerta,
         fecha_hora=datetime.now()
     )
 
-    config = (
-        db.query(ConfiguracionAlerta)
-        .filter(ConfiguracionAlerta.activo == True)
-        .first()
-    )
-
-    if config:
-
-        # Nivel verde
-        if 5 <= datos.nivel_agua < 10:
-
-            nueva_medicion.estado_alerta = "NORMAL"
-
-        # Alerta amarilla
-        elif 10 <= datos.nivel_agua < 15:
-
-            nueva_medicion.estado_alerta = "PRECAUCION"
-
-            alerta = Alerta(
-                nivel_alerta="AMARILLA",
-                descripcion=f"Nivel de agua en precaución: {datos.nivel_agua} cm",
-                fecha_hora=datetime.now(),
-                atendida=False
-            )
-
-            db.add(alerta)
-
-        # Alerta naranja
-        elif 15 <= datos.nivel_agua <= 20:
-
-            nueva_medicion.estado_alerta = "PREVENCION"
-
-            alerta = Alerta(
-                nivel_alerta="NARANJA",
-                descripcion=f"Nivel de agua en prevención: {datos.nivel_agua} cm",
-                fecha_hora=datetime.now(),
-                atendida=False
-            )
-
-            db.add(alerta)
-
-        # Alerta roja
-        elif datos.nivel_agua > 20:
-
-            nueva_medicion.estado_alerta = "CRITICA"
-
-            alerta = Alerta(
-                nivel_alerta="ROJA",
-                descripcion=f"Nivel crítico detectado: {datos.nivel_agua} cm",
-                fecha_hora=datetime.now(),
-                atendida=False
-            )
-
-            db.add(alerta)
-
-        else:
-
-            nueva_medicion.estado_alerta = "SIN RIESGO"
-
     db.add(nueva_medicion)
-
     db.commit()
-
     db.refresh(nueva_medicion)
+
+    # Crear alerta únicamente si el estado es diferente de verde
+    if datos.estado_alerta > 1:
+
+        niveles = {
+            2: "AMARILLA",
+            3: "NARANJA",
+            4: "ROJA"
+        }
+
+        descripciones = {
+            2: f"Nivel de agua en precaución: {datos.nivel_agua} cm",
+            3: f"Nivel de agua en prevención: {datos.nivel_agua} cm",
+            4: f"Nivel crítico detectado: {datos.nivel_agua} cm"
+        }
+
+        alerta = Alerta(
+            nivel_alerta=niveles.get(datos.estado_alerta),
+            descripcion=descripciones.get(datos.estado_alerta),
+            fecha_hora=datetime.now(),
+            atendida=False
+        )
+
+        db.add(alerta)
+        db.commit()
 
     db.close()
 
