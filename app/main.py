@@ -1,14 +1,22 @@
 from fastapi import FastAPI
-from sqlalchemy.orm import Session
-from datetime import datetime
-
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session, func
+from datetime import datetime, date
 
 from app.database import SessionLocal
-from app.models import Medicion,Alerta,ConfiguracionAlerta
-from app.schemas import MedicionCreate,ConfiguracionUpdate
-
+from app.models import Medicion, Alerta, ConfiguracionAlerta
+from app.schemas import MedicionCreate, ConfiguracionUpdate
 
 app = FastAPI()
+
+# Configuración CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],      # Permite cualquier origen
+    allow_credentials=True,
+    allow_methods=["*"],      # Permite todos los métodos HTTP
+    allow_headers=["*"],      # Permite todos los encabezados
+)
 
 
 @app.post("/mediciones")
@@ -64,20 +72,39 @@ def crear_medicion(datos: MedicionCreate):
         "estado_alerta": nueva_medicion.estado_alerta
     }
 
+
 @app.get("/mediciones")
-def obtener_mediciones():
+def obtener_mediciones(
+    fecha: date = None,
+    hora: int = None
+):
 
     db: Session = SessionLocal()
 
-    mediciones = db.query(Medicion)\
-                   .order_by(Medicion.id_medicion.desc())\
-                   .all()
+    consulta = db.query(Medicion)
+
+    # Filtrar por fecha
+    if fecha:
+        consulta = consulta.filter(
+            func.date(Medicion.fecha_hora) == fecha
+        )
+
+    # Filtrar por hora
+    if hora is not None:
+        consulta = consulta.filter(
+            func.extract('hour', Medicion.fecha_hora) == hora
+        )
+
+    mediciones = consulta.order_by(
+        Medicion.id_medicion.desc()
+    ).all()
 
     resultado = []
 
     for m in mediciones:
         resultado.append({
             "id_medicion": m.id_medicion,
+            "id_dispositivo": m.id_dispositivo,
             "nivel_agua": float(m.nivel_agua),
             "nivel_fluvial": float(m.nivel_fluvial),
             "temperatura": float(m.temperatura),
@@ -91,14 +118,17 @@ def obtener_mediciones():
 
     return resultado
 
+
 @app.get("/mediciones/ultima")
 def obtener_ultima_medicion():
 
     db: Session = SessionLocal()
 
-    medicion = db.query(Medicion)\
-                 .order_by(Medicion.id_medicion.desc())\
-                 .first()
+    medicion = (
+        db.query(Medicion)
+        .order_by(Medicion.id_medicion.desc())
+        .first()
+    )
 
     db.close()
 
@@ -115,6 +145,7 @@ def obtener_ultima_medicion():
         "estado_alerta": medicion.estado_alerta,
         "fecha_hora": str(medicion.fecha_hora)
     }
+
 
 @app.get("/alertas")
 def obtener_alertas():
@@ -142,6 +173,7 @@ def obtener_alertas():
 
     return resultado
 
+
 @app.get("/alertas/{id_alerta}")
 def obtener_alerta(id_alerta: int):
 
@@ -166,6 +198,7 @@ def obtener_alerta(id_alerta: int):
         "atendida": alerta.atendida
     }
 
+
 @app.get("/configuracion-alertas")
 def obtener_configuracion():
 
@@ -189,6 +222,8 @@ def obtener_configuracion():
         "activo": config.activo,
         "fecha_actualizacion": str(config.fecha_actualizacion)
     }
+
+
 @app.put("/configuracion-alertas")
 def actualizar_configuracion(datos: ConfiguracionUpdate):
 
