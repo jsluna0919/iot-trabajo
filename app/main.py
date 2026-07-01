@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session, func
+from sqlalchemy.orm import Session
+from sqlalchemy import func
 from datetime import datetime, date
-
 from app.database import SessionLocal
 from app.models import Medicion, Alerta, ConfiguracionAlerta
 from app.schemas import MedicionCreate, ConfiguracionUpdate
@@ -18,6 +18,9 @@ app.add_middleware(
     allow_headers=["*"],      # Permite todos los encabezados
 )
 
+# coordenadas 
+LATITUD_SENSOR = 6.407003
+LONGITUD_SENSOR = -75.446880
 
 @app.post("/mediciones")
 def crear_medicion(datos: MedicionCreate):
@@ -258,3 +261,37 @@ def actualizar_configuracion(datos: ConfiguracionUpdate):
     return {
         "mensaje": "Configuración actualizada"
     }
+
+@app.get("/mapa")
+def obtener_datos_mapa():
+
+    db: Session = SessionLocal()
+
+    mediciones = (
+        db.query(Medicion)
+        .order_by(Medicion.id_medicion.desc())
+        .all()
+    )
+
+    resultado = []
+
+    for m in mediciones:
+
+        resultado.append({
+
+            "id_medicion": m.id_medicion,
+            "latitud": LATITUD_SENSOR,
+            "longitud": LONGITUD_SENSOR,
+            "nivel_agua": float(m.nivel_agua),
+            "nivel_fluvial": float(m.nivel_fluvial),
+            "temperatura": float(m.temperatura),
+            "humedad": float(m.humedad),
+            "esta_lloviendo": m.esta_lloviendo,
+            "estado_alerta": m.estado_alerta,
+            "fecha_hora": str(m.fecha_hora)
+
+        })
+
+    db.close()
+
+    return resultado
