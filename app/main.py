@@ -273,25 +273,34 @@ def obtener_datos_mapa():
         .all()
     )
 
-    resultado = []
+    features = []
 
     for m in mediciones:
 
-        resultado.append({
-
-            "id_medicion": m.id_medicion,
-            "latitud": LATITUD_SENSOR,
-            "longitud": LONGITUD_SENSOR,
-            "nivel_agua": float(m.nivel_agua),
-            "nivel_fluvial": float(m.nivel_fluvial),
-            "temperatura": float(m.temperatura),
-            "humedad": float(m.humedad),
-            "esta_lloviendo": m.esta_lloviendo,
-            "estado_alerta": m.estado_alerta,
-            "fecha_hora": str(m.fecha_hora)
-
+        features.append({
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    LONGITUD_SENSOR,
+                    LATITUD_SENSOR
+                ]
+            },
+            "properties": {
+                "id_medicion": m.id_medicion,
+                "nivel_agua": float(m.nivel_agua),
+                "nivel_fluvial": float(m.nivel_fluvial),
+                "temperatura": float(m.temperatura),
+                "humedad": float(m.humedad),
+                "esta_lloviendo": m.esta_lloviendo,
+                "estado_alerta": m.estado_alerta,
+                "fecha_hora": str(m.fecha_hora)
+            }
         })
 
     db.close()
 
-    return resultado
+    return {
+        "type": "FeatureCollection",
+        "features": features
+    }
