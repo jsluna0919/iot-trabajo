@@ -27,6 +27,17 @@ def crear_medicion(datos: MedicionCreate):
 
     db: Session = SessionLocal()
 
+    # Conversión del estado recibido desde el ESP32
+    estados = {
+        1: "NORMAL",
+        2: "PRECAUCIÓN",
+        3: "PREVENCIÓN",
+        4: "CRÍTICA"
+    }
+
+    estado_texto = estados.get(datos.estado_alerta, "NORMAL")
+
+    # Guardar la medición
     nueva_medicion = Medicion(
         id_dispositivo=datos.id_dispositivo,
         nivel_agua=datos.nivel_agua,
@@ -34,7 +45,7 @@ def crear_medicion(datos: MedicionCreate):
         temperatura=datos.temperatura,
         humedad=datos.humedad,
         esta_lloviendo=datos.esta_lloviendo,
-        estado_alerta=datos.estado_alerta,
+        estado_alerta=estado_texto,
         fecha_hora=datetime.now()
     )
 
@@ -42,18 +53,18 @@ def crear_medicion(datos: MedicionCreate):
     db.commit()
     db.refresh(nueva_medicion)
 
-    # Crear alerta únicamente si el estado es diferente de verde
-    if datos.estado_alerta > 1:
+    # Crear alerta desde PRECAUCIÓN (estado 2)
+    if datos.estado_alerta >= 2:
 
         niveles = {
-            2: "AMARILLA",
-            3: "NARANJA",
-            4: "ROJA"
+            2: "PRECAUCIÓN",
+            3: "PREVENCIÓN",
+            4: "CRÍTICA"
         }
 
         descripciones = {
-            2: f"Nivel de agua en precaución: {datos.nivel_agua} cm",
-            3: f"Nivel de agua en prevención: {datos.nivel_agua} cm",
+            2: f"Nivel de agua en estado de precaución: {datos.nivel_agua} cm",
+            3: f"Nivel de agua en estado de prevención: {datos.nivel_agua} cm",
             4: f"Nivel crítico detectado: {datos.nivel_agua} cm"
         }
 
@@ -72,9 +83,8 @@ def crear_medicion(datos: MedicionCreate):
     return {
         "mensaje": "Medición guardada correctamente",
         "id_medicion": nueva_medicion.id_medicion,
-        "estado_alerta": nueva_medicion.estado_alerta
+        "estado_alerta": estado_texto
     }
-
 
 @app.get("/mediciones")
 def obtener_mediciones(

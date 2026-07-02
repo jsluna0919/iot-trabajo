@@ -12,7 +12,7 @@ class Medicion(Base):
     temperatura = Column(Numeric)
     humedad = Column(Numeric)
     esta_lloviendo = Column(Boolean)
-    estado_alerta = Column(Integer, nullable=False)
+    estado_alerta = Column(String(20), nullable=False)
     fecha_hora = Column(DateTime)
     id_dispositivo = Column(String(20),nullable=False, default="esp1")
 
